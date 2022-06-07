@@ -18,6 +18,7 @@ package testing
 
 import (
 	"fmt"
+	policyV1 "k8s.io/api/policy/v1"
 	"reflect"
 	"sort"
 	"strings"
@@ -85,7 +86,6 @@ func ObjectReaction(tracker ObjectTracker) ReactionFunc {
 		// (e.g. UpdateAction and CreateAction), so if we use them,
 		// updates and creates end up matching the same case branch.
 		switch action := action.(type) {
-
 		case ListActionImpl:
 			obj, err := tracker.List(gvr, action.GetKind(), ns)
 			return true, obj, err
@@ -222,6 +222,7 @@ func NewObjectTracker(scheme ObjectScheme, decoder runtime.Decoder) ObjectTracke
 }
 
 func (t *tracker) List(gvr schema.GroupVersionResource, gvk schema.GroupVersionKind, ns string) (runtime.Object, error) {
+
 	// Heuristic for list kind: original kind + List suffix. Might
 	// not always be true but this tracker has a pretty limited
 	// understanding of the actual API model.
@@ -254,6 +255,7 @@ func (t *tracker) List(gvr schema.GroupVersionResource, gvk schema.GroupVersionK
 	if err != nil {
 		return nil, err
 	}
+
 	if err := meta.SetList(list, matchingObjs); err != nil {
 		return nil, err
 	}
@@ -477,7 +479,12 @@ func filterByNamespace(objs map[types.NamespacedName]runtime.Object, ns string) 
 		if ns != "" && acc.GetNamespace() != ns {
 			continue
 		}
-		res = append(res, obj)
+		switch acc.(type) {
+		case *policyV1.Eviction:
+			continue
+		default:
+			res = append(res, obj)
+		}
 	}
 
 	// Sort res to get deterministic order.
